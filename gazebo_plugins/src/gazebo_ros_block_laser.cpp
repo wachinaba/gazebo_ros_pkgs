@@ -147,6 +147,11 @@ void GazeboRosBlockLaser::Load(sensors::SensorPtr _parent, sdf::ElementPtr _sdf)
   }
   else
     this->update_rate_ = _sdf->GetElement("updateRate")->Get<double>();
+
+    if (this->update_rate_ > 0.0)
+      this->update_period_ = 1.0/this->update_rate_;
+    else
+      this->update_period_ = 0.0;
   // FIXME:  update the update_rate_
 
 
@@ -218,15 +223,20 @@ void GazeboRosBlockLaser::OnNewLaserScans()
 #endif
   if (this->topic_name_ != "")
   {
-    common::Time sensor_update_time = this->parent_sensor_->LastUpdateTime();
-    if (sensor_update_time < last_update_time_)
+#if GAZEBO_MAJOR_VERSION >= 8
+    common::Time cur_time = this->world_->SimTime();
+#else
+    common::Time cur_time = this->world_->GetSimTime();
+#endif
+    if (cur_time < this->last_update_time_)
     {
         ROS_WARN_NAMED("block_laser", "Negative sensor update time difference detected.");
-        last_update_time_ = sensor_update_time;
+        this->last_update_time_ = cur_time;
     }
 
-    if (last_update_time_ < sensor_update_time)
+    if (cur_time - this->last_update_time_ >= this->update_period_)
     {
+      common::Time sensor_update_time = this->parent_ray_sensor_->LastUpdateTime();
 #ifdef ENABLE_PROFILER
       IGN_PROFILE_BEGIN("PutLaserData");
 #endif
@@ -234,7 +244,7 @@ void GazeboRosBlockLaser::OnNewLaserScans()
 #ifdef ENABLE_PROFILER
       IGN_PROFILE_END();
 #endif
-      last_update_time_ = sensor_update_time;
+      this->last_update_time_ = cur_time;
     }
   }
   else

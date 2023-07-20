@@ -106,6 +106,7 @@ namespace gazebo
 
     /// update rate of this sensor
     private: double update_rate_;
+    private: double update_period_;
 
     /// \brief for setting ROS name space
     private: std::string robot_namespace_;
